@@ -33,7 +33,6 @@ DEALINGS IN THE SOFTWARE.
 #include "MicroBitButton.h"
 #include "MicroBitSystemTimer.h"
 #include "TimedInterruptIn.h"
-#include "DynamicPwm.h"
 #include "ErrorNo.h"
 
 /**
@@ -85,9 +84,6 @@ void MicroBitPin::disconnect()
         NRF_ADC->ENABLE = ADC_ENABLE_ENABLE_Disabled; // forcibly disable the ADC - BUG in mbed....
         delete ((AnalogIn *)pin);
     }
-
-    if (status & IO_STATUS_ANALOG_OUT)
-        delete ((DynamicPwm *)pin);
 
     if (status & IO_STATUS_TOUCH_IN)
         delete ((MicroBitButton *)pin);
@@ -188,13 +184,6 @@ int MicroBitPin::getDigitalValue(PinMode pull)
 
 int MicroBitPin::obtainAnalogChannel()
 {
-    // Move into an analogue input state if necessary, if we are no longer the focus of a DynamicPWM instance, allocate ourselves again!
-    if (!(status & IO_STATUS_ANALOG_OUT) || !(((DynamicPwm *)pin)->getPinName() == name)){
-        disconnect();
-        pin = (void *)new DynamicPwm(name);
-        status |= IO_STATUS_ANALOG_OUT;
-    }
-
     return MICROBIT_OK;
 }
 
@@ -208,21 +197,7 @@ int MicroBitPin::obtainAnalogChannel()
   */
 int MicroBitPin::setAnalogValue(int value)
 {
-    //check if this pin has an analogue mode...
-    if(!(PIN_CAPABILITY_ANALOG_OUT & capability))
-        return MICROBIT_NOT_SUPPORTED;
-
-    //sanitise the level value
-    if(value < 0 || value > MICROBIT_PIN_MAX_OUTPUT)
-        return MICROBIT_INVALID_PARAMETER;
-
-    float level = (float)value / float(MICROBIT_PIN_MAX_OUTPUT);
-
-    //obtain use of the DynamicPwm instance, if it has changed / configure if we do not have one
-    if(obtainAnalogChannel() == MICROBIT_OK)
-        return ((DynamicPwm *)pin)->write(level);
-
-    return MICROBIT_OK;
+    return MICROBIT_NOT_SUPPORTED;
 }
 
 /**
@@ -391,16 +366,7 @@ int MicroBitPin::setServoPulseUs(int pulseWidth)
     if(pulseWidth < 0)
         return MICROBIT_INVALID_PARAMETER;
 
-    //Check we still have the control over the DynamicPwm instance
-    if(obtainAnalogChannel() == MICROBIT_OK)
-    {
-        //check if the period is set to 20ms
-        if(((DynamicPwm *)pin)->getPeriodUs() != MICROBIT_DEFAULT_PWM_PERIOD)
-            ((DynamicPwm *)pin)->setPeriodUs(MICROBIT_DEFAULT_PWM_PERIOD);
-
-        ((DynamicPwm *)pin)->pulsewidth_us(pulseWidth);
-    }
-
+    // NOPE ! (virtu)
     return MICROBIT_OK;
 }
 
@@ -414,10 +380,7 @@ int MicroBitPin::setServoPulseUs(int pulseWidth)
   */
 int MicroBitPin::setAnalogPeriodUs(int period)
 {
-    if (!(status & IO_STATUS_ANALOG_OUT))
-        return MICROBIT_NOT_SUPPORTED;
-
-    return ((DynamicPwm *)pin)->setPeriodUs(period);
+	return MICROBIT_NOT_SUPPORTED;
 }
 
 /**
@@ -441,10 +404,7 @@ int MicroBitPin::setAnalogPeriod(int period)
   */
 int MicroBitPin::getAnalogPeriodUs()
 {
-    if (!(status & IO_STATUS_ANALOG_OUT))
-        return MICROBIT_NOT_SUPPORTED;
-
-    return ((DynamicPwm *)pin)->getPeriodUs();
+    return MICROBIT_NOT_SUPPORTED;
 }
 
 /**
